@@ -96,9 +96,6 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
 
-    /* ---------------------------------------------------------
-       RESPONSIVE DÜZENLEMELER (GÜÇLENDİRİLMİŞ)
-       --------------------------------------------------------- */
     @media (max-width: 900px) {
         .app {
             grid-template-columns: 1fr;
@@ -143,7 +140,6 @@
             grid-template-columns: 1fr;
         }
 
-        /* TABLO KART GÖRÜNÜMÜ - MOBİL FIX v1.3 */
         table, thead, tbody, th, td, tr { 
             display: block; 
             width: 100%;
@@ -216,6 +212,21 @@
       background: rgba(255,255,255,0.05);
       padding: 5px;
       border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Logo Yüklenemezse Gösterilecek Yedek Metin */
+    .logo-fallback-text {
+        display: none;
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--ener-yellow);
+        border: 2px solid var(--ener-blue);
+        padding: 10px;
+        border-radius: 12px;
+        text-align: center;
+        width: 70px;
+        height: 70px;
+        line-height: 45px;
     }
 
     .logo-title {
@@ -492,17 +503,23 @@
     .primary-button {
         background: linear-gradient(90deg, var(--ener-blue), var(--ener-yellow));
         border: none;
-        padding: 10px 20px;
+        padding: 12px 20px;
         color: #000;
         font-weight: bold;
         border-radius: 8px;
         cursor: pointer;
-        transition: transform 0.2s;
+        transition: all 0.3s;
         width: 100%;
         max-width: 300px;
+        position: relative;
+        overflow: hidden;
     }
-    .primary-button:hover {
-        transform: scale(1.02);
+    
+    .primary-button.loading {
+        pointer-events: none;
+        opacity: 0.8;
+        background: linear-gradient(90deg, #374151, #4b5563);
+        color: #d1d5db;
     }
 
     .badge-risk {
@@ -561,6 +578,12 @@
         border-left: 4px solid var(--ener-blue);
         display: none;
         margin-top: 10px;
+        animation: slideDown 0.5s ease;
+    }
+    
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
     .overlay {
@@ -590,12 +613,16 @@
 
   <aside class="sidebar" id="sidebar">
     <div class="logo-box">
+      <!-- LOGO ÇÖZÜMÜ: 3 AŞAMALI YEDEKLEME -->
       <img 
+        id="main-logo"
         src="static/Gemini_Generated_Image_YTD.png" 
         class="team-logo" 
         alt="YTD Learning Logo"
-        onerror="this.style.display='none'"
+        onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block';"
       >
+      <!-- Resim Yüklenemezse Bu Çıkar -->
+      <div id="logo-fallback" class="logo-fallback-text">YTD</div>
       
       <div>
         <div class="logo-title">YTD Learning</div>
@@ -625,7 +652,7 @@
       <div class="topbar-left">
         <div class="top-title">
           Yatırım & Bakım Karar Destek Sistemi
-          <span class="top-pill">v1.3 Full Data (456 Varlık)</span>
+          <span class="top-pill">Sürüm 1.5 (Yarı Final)</span>
         </div>
         <div class="top-subtitle">
           Gerçek saha verileri üzerinde optimizasyon ve risk analizi.
@@ -678,6 +705,7 @@
             <button id="run-optimization-btn" class="primary-button">
             Optimizasyonu Çalıştır
             </button>
+            <span id="opt-status" style="font-size:13px; color:#fbbf24; display:none; font-weight:bold;"></span>
             <span id="opt-result"></span>
         </div>
 
@@ -747,11 +775,7 @@
      VERİ VE MANTIK KATMANI
      ======================================================================= -->
 <script>
-  // MODEL DATA'DAN ALINAN TAM VERİ (456 Adet)
-  // Python model_data.py'dan parse edilmiştir.
-  
-  // Tüm veriyi tek bir JSON dizisi olarak tutuyoruz (Sıkıştırılmış format)
-  // Sıra: [ID, TALEP_NO, SAIDI, SAIFI, COST, HEALTH, GROUP, YB(1=Yatırım), K(1=Kamu)]
+  // MODEL DATA'DAN ALINAN TAM VERİ (456 Adet) - Sıkıştırılmış Format
   const fullData = [
     [1,322,0.33180901,0.33180901,13,6235,"Trafo",1,1],
     [2,500,0.862997832,0.862997832,46,4520,"Kesici",0,0],
@@ -1217,9 +1241,7 @@
 
   // Veri İşleme
   const assetsData = fullData.map(item => {
-    // Array indexleri: [0:ID, 1:TALEP, 2:SAIDI, 3:SAIFI, 4:COST, 5:HEALTH, 6:GROUP, 7:YB, 8:K]
     const rawHealth = item[5];
-    // Max sağlık değerini 7500 kabul ederek normalize ediyoruz
     const health_ui = Math.min(Math.round((rawHealth / 7500) * 100), 100);
 
     let risk_label = "Düşük";
@@ -1283,15 +1305,13 @@
     };
   });
 
-  // Table Rendering (Virtual Scroll Mantığı Yok ama Limitleme Var)
+  // Table Rendering
   const tableBody = document.querySelector("#assets-table tbody");
   
-  // Tüm veriyi aynı anda render etmek mobilde kasabilir.
-  // Bu yüzden ilk 50 tanesini gösterip, aşağı indikçe yükletebiliriz veya sayfalama yapabiliriz.
-  // Şimdilik basitlik adına ilk 100'ü gösterelim.
+  // Performans için her zaman bir limit kullanmak en iyisidir.
+  // Arka planda tüm veri (456 adet) işlenir ama ekrana sadece ilk 100'ü basılır.
   function renderTable(data) {
       tableBody.innerHTML = "";
-      // Performans için sadece ilk 100 kaydı göster
       const limit = 100; 
       
       data.slice(0, limit).forEach(asset => {
@@ -1318,7 +1338,7 @@
       if(data.length > limit) {
           const infoRow = document.createElement("tr");
           infoRow.innerHTML = `<td colspan="9" style="text-align:center; color:var(--text-muted); padding:15px;">
-            ... ve ${data.length - limit} kayıt daha. (Performans için gizlendi)
+            ... ve ${data.length - limit} kayıt daha.
           </td>`;
           tableBody.appendChild(infoRow);
       }
@@ -1356,84 +1376,108 @@
       }
   }
 
-  // Optimization Logic
+  // Optimization Logic (SİMÜLASYONLU)
   document.getElementById("run-optimization-btn").onclick = () => {
       const resultSpan = document.getElementById("opt-result");
+      const statusSpan = document.getElementById("opt-status");
       const outputDiv = document.getElementById("demo-output");
+      const btn = document.getElementById("run-optimization-btn");
       
-      resultSpan.style.display = "block";
-      resultSpan.textContent = "Hesaplanıyor...";
-      resultSpan.style.color = "#fbbf24";
+      // UI Reset
+      resultSpan.style.display = "none";
+      statusSpan.style.display = "block";
       outputDiv.style.display = "none";
+      
+      // Butonu kilitle ve yükleniyor moduna al
+      btn.classList.add("loading");
+      btn.textContent = "Analiz Başlatıldı...";
 
+      // Adım 1: Veri Yükleme Simülasyonu (1.5 sn)
+      statusSpan.textContent = "Tüm şebeke verileri taranıyor (456 varlık)...";
+      
       setTimeout(() => {
-          try {
-              const maxSaidi = Math.max(...assetsData.map(a => a.saidi)) || 1;
-              const maxSaifi = Math.max(...assetsData.map(a => a.saifi)) || 1;
+          // Adım 2: Risk Analizi (1.5 sn)
+          statusSpan.textContent = "Risk ve Maliyet matrisleri hesaplanıyor...";
+          
+          setTimeout(() => {
+              // Adım 3: Sonuçları Hesapla ve Göster (Gerçek İşlem)
+              try {
+                  const maxSaidi = Math.max(...assetsData.map(a => a.saidi)) || 1;
+                  const maxSaifi = Math.max(...assetsData.map(a => a.saifi)) || 1;
 
-              const scoredAssets = assetsData.map(a => {
-                  const normSaidi = a.saidi / maxSaidi;
-                  const normSaifi = a.saifi / maxSaifi;
-                  const normHealthRisk = (100 - a.health_ui) / 100.0;
-                  const score = (weights.w1 * normSaidi) + (weights.w2 * normSaifi) + (weights.w4 * normHealthRisk);
-                  return { ...a, score: score };
-              });
+                  const scoredAssets = assetsData.map(a => {
+                      const normSaidi = a.saidi / maxSaidi;
+                      const normSaifi = a.saifi / maxSaifi;
+                      const normHealthRisk = (100 - a.health_ui) / 100.0;
+                      const score = (weights.w1 * normSaidi) + (weights.w2 * normSaifi) + (weights.w4 * normHealthRisk);
+                      return { ...a, score: score };
+                  });
 
-              scoredAssets.sort((a, b) => {
-                  const ratioA = a.score / Math.max(a.cost, 0.1);
-                  const ratioB = b.score / Math.max(b.cost, 0.1);
-                  return ratioB - ratioA;
-              });
+                  scoredAssets.sort((a, b) => {
+                      const ratioA = a.score / Math.max(a.cost, 0.1);
+                      const ratioB = b.score / Math.max(b.cost, 0.1);
+                      return ratioB - ratioA;
+                  });
 
-              let usedBudget = 0;
-              let totalObjective = 0;
-              const selected = [];
+                  let usedBudget = 0;
+                  let totalObjective = 0;
+                  const selected = [];
 
-              for (const asset of scoredAssets) {
-                  if (usedBudget + asset.cost <= BUDGET) {
-                      selected.push(asset);
-                      usedBudget += asset.cost;
-                      totalObjective += asset.score;
+                  for (const asset of scoredAssets) {
+                      if (usedBudget + asset.cost <= BUDGET) {
+                          selected.push(asset);
+                          usedBudget += asset.cost;
+                          totalObjective += asset.score;
+                      }
                   }
+
+                  // UI Güncelleme
+                  btn.classList.remove("loading");
+                  btn.textContent = "Optimizasyonu Tekrar Çalıştır";
+                  statusSpan.style.display = "none";
+                  
+                  resultSpan.style.display = "block";
+                  resultSpan.textContent = `İşlem Tamamlandı! Amaç Değeri: ${totalObjective.toFixed(4)}`;
+                  resultSpan.style.color = "#4ade80";
+
+                  let html = `
+                    <div style="background: rgba(20,93,160,0.2); padding: 15px; border-radius: 8px; border: 1px solid var(--ener-blue); margin-top:10px;">
+                        <h3 style="margin-bottom:10px; color: var(--ener-yellow);">Optimizasyon Sonucu</h3>
+                        <p>Mevcut Bütçe: <strong>${BUDGET}</strong></p>
+                        <p>Kullanılan Bütçe: <strong>${usedBudget}</strong></p>
+                        <p>Seçilen Varlık Sayısı: <strong>${selected.length}</strong></p>
+                        <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
+                        <p style="font-size:12px; margin-bottom:5px; color:#9ca3af;">ÖNCELİKLİ YATIRIM LİSTESİ (En Kritik 20):</p>
+                        <ul style="padding-left: 20px; font-size: 13px;">
+                  `;
+
+                  // Sadece ilk 20'yi göster (Jüriyi sıkmamak ve UI temizliği için)
+                  selected.slice(0, 20).forEach(item => {
+                      html += `<li><strong>Talep ${item.talep_no}</strong> (${item.group}) - Maliyet: ${item.cost} - Skor: ${item.score.toFixed(3)}</li>`;
+                  });
+
+                  // Kalanları özet olarak göster
+                  if (selected.length > 20) {
+                      html += `<li>... ve ${selected.length - 20} adet daha yatırım planına alındı.</li>`;
+                  }
+
+                  if (selected.length === 0) {
+                      html += `<li>Bütçe yetersiz veya uygun aday bulunamadı.</li>`;
+                  }
+
+                  html += `</ul></div>`;
+                  outputDiv.innerHTML = html;
+                  outputDiv.style.display = "block";
+
+              } catch (err) {
+                  console.error(err);
+                  btn.classList.remove("loading");
+                  btn.textContent = "Hata Oluştu";
+                  statusSpan.textContent = "Hesaplama sırasında hata meydana geldi.";
+                  statusSpan.style.color = "#ef4444";
               }
-
-              resultSpan.textContent = `Tamamlandı! Amaç Değeri: ${totalObjective.toFixed(4)}`;
-              resultSpan.style.color = "#4ade80";
-
-              let html = `
-                <div style="background: rgba(20,93,160,0.2); padding: 15px; border-radius: 8px; border: 1px solid var(--ener-blue);">
-                    <h3 style="margin-bottom:10px; color: var(--ener-yellow);">Optimizasyon Sonucu</h3>
-                    <p>Mevcut Bütçe: <strong>${BUDGET}</strong></p>
-                    <p>Kullanılan Bütçe: <strong>${usedBudget}</strong></p>
-                    <p>Seçilen Varlık Sayısı: <strong>${selected.length}</strong></p>
-                    <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
-                    <p style="font-size:12px; margin-bottom:5px; color:#9ca3af;">ÖNCELİKLİ YATIRIM LİSTESİ (İlk 20 Kayıt):</p>
-                    <ul style="padding-left: 20px; font-size: 13px;">
-              `;
-
-              // Listeyi çok uzatmamak için optimizasyon sonucunda sadece ilk 20'yi göster
-              selected.slice(0, 20).forEach(item => {
-                  html += `<li><strong>Talep ${item.talep_no}</strong> (${item.group}) - Maliyet: ${item.maliyet || item.cost} - Skor: ${item.score.toFixed(3)}</li>`;
-              });
-
-              if (selected.length > 20) {
-                  html += `<li>... ve ${selected.length - 20} adet daha.</li>`;
-              }
-
-              if (selected.length === 0) {
-                  html += `<li>Bütçe yetersiz veya uygun aday bulunamadı.</li>`;
-              }
-
-              html += `</ul></div>`;
-              outputDiv.innerHTML = html;
-              outputDiv.style.display = "block";
-
-          } catch (err) {
-              console.error(err);
-              resultSpan.textContent = "Hesaplama Hatası!";
-              resultSpan.style.color = "#ef4444";
-          }
-      }, 500);
+          }, 2000); // 2 saniye bekle (Adım 2)
+      }, 1500); // 1.5 saniye bekle (Adım 1)
   };
 </script>
 </body>
