@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>YTD Learning – Şebeke Yönetim Arayüzü</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  
+  <style>
+    /* --------------------------------------------------------------------------
+       TASARIM SİSTEMİ (CSS)
+       -------------------------------------------------------------------------- */
+    :root {
+      --ener-yellow: #f9a825;
+      --ener-yellow-soft: #f0e41c;
+      --ener-blue: #145da0;
+
+      --bg-main: #020617;
+      --bg-card: #020617;
+      --text: #e5e7eb;
+      --text-muted: #9ca3af;
+      --border: #1f2937;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --shadow-soft: 0 24px 60px rgba(0,0,0,0.8);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      min-height: 100vh;
+      position: relative;
+      color: var(--text);
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      background: #020617;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(20,93,160,0.35), transparent 60%),
+        radial-gradient(circle at 85% 90%, rgba(249,168,37,0.28), transparent 65%);
+      filter: blur(55px);
+      z-index: -1;
+      opacity: 0.55;
+      pointer-events: none;
+    }
+
+    .app {
+      max-width: 1400px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 18px;
+      padding: 24px;
+      height: 100vh;
+    }
+
+    /* ---------------------------------------------------------
+       SIDEBAR & MOBILE MENU
+       --------------------------------------------------------- */
+    .sidebar {
+      background:
+        radial-gradient(circle at top, rgba(20,93,160,0.35), transparent 65%),
+        linear-gradient(145deg, rgba(15,23,42,0.98), rgba(15,23,42,0.92));
+      border-radius: var(--radius-lg);
+      padding: 18px 18px 16px;
+      border: 1px solid rgba(148,163,184,0.35);
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 50;
+      transition: transform 0.3s ease;
+    }
+
+    .mobile-menu-btn {
+        display: none;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 60;
+        background: rgba(15,23,42,0.95);
+        border: 1px solid var(--ener-yellow);
+        color: var(--ener-yellow);
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    /* ---------------------------------------------------------
+       RESPONSIVE DÜZENLEMELER (GÜÇLENDİRİLMİŞ)
+       --------------------------------------------------------- */
+    @media (max-width: 900px) {
+        .app {
+            grid-template-columns: 1fr;
+            padding: 0;
+            height: auto;
+            display: block;
+        }
+
+        .mobile-menu-btn {
+            display: block;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 280px;
+            transform: translateX(-100%);
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .main {
+            border-radius: 0;
+            border: none;
+            min-height: 100vh;
+            padding-top: 60px;
+        }
+
+        .topbar {
+            display: none;
+        }
+
+        .content {
+            padding: 15px;
+        }
+
+        .kpi-grid {
+            grid-template-columns: 1fr;
+        }
+
+        /* TABLO KART GÖRÜNÜMÜ - MOBİL FIX v1.3 */
+        table, thead, tbody, th, td, tr { 
+            display: block; 
+            width: 100%;
+        }
+        
+        thead tr { 
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+        }
+        
+        tr { 
+            margin-bottom: 20px; 
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(15,23,42,0.9), rgba(10,15,30,0.95));
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        td { 
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            border: none;
+            border-bottom: 1px solid rgba(255,255,255,0.08); 
+            position: relative;
+            padding: 12px 0;
+            text-align: right;
+            min-height: 40px;
+            gap: 20px; 
+        }
+
+        td:last-child {
+            border-bottom: none;
+            justify-content: flex-end;
+            padding-top: 15px;
+        }
+        
+        td:before { 
+            content: attr(data-label); 
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.05em;
+            text-align: left;
+            white-space: nowrap;
+            flex-shrink: 0; 
+        }
+        
+        td > * {
+            text-align: right;
+            word-break: break-word; 
+        }
+    }
+
+    .logo-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .team-logo {
+      height: 70px;
+      width: auto;
+      object-fit: contain;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.05);
+      padding: 5px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .logo-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .menu-group-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+      margin: 4px 4px 2px;
+    }
+
+    .menu-btn {
+      background: transparent;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      padding: 9px 12px;
+      color: var(--text-muted);
+      font-size: 14px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: 0.18s ease;
+    }
+
+    .menu-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.6);
+    }
+
+    .menu-btn span.label {
+      flex: 1;
+      text-align: left;
+    }
+
+    .menu-btn:hover {
+      background: rgba(148,163,184,0.12);
+      border-color: rgba(148,163,184,0.4);
+      color: #e5e7eb;
+    }
+
+    .menu-btn.active {
+      background:
+        radial-gradient(circle at left, rgba(249,168,37,0.4), transparent 65%),
+        linear-gradient(90deg, rgba(20,93,160,0.75), rgba(249,168,37,0.85));
+      border-color: rgba(249,168,37,0.9);
+      color: #0b1020;
+    }
+
+    .menu-btn.active .menu-dot {
+      background: #0b1020;
+    }
+
+    .main {
+      background:
+        radial-gradient(circle at 0% 0%, rgba(20,93,160,0.25), transparent 60%),
+        radial-gradient(circle at 100% 100%, rgba(249,168,37,0.22), transparent 70%),
+        linear-gradient(145deg, rgba(15,23,42,0.98), rgba(15,23,42,0.94));
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(148,163,184,0.4);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .topbar {
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(31,41,55,0.85);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(20px);
+      background: linear-gradient(
+        90deg,
+        rgba(15,23,42,0.96),
+        rgba(15,23,42,0.9)
+      );
+    }
+
+    .topbar-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .top-title {
+      font-size: 18px;
+      font-weight: 650;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .top-pill {
+      font-size: 11px;
+      padding: 2px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.6);
+      color: var(--text-muted);
+    }
+
+    .top-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .topbar-right-pill {
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: linear-gradient(120deg, var(--ener-blue), var(--ener-yellow-soft));
+      color: #020617;
+      font-weight: 600;
+      box-shadow: 0 0 24px rgba(20,93,160,0.6);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .content {
+      padding: 20px 20px 22px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; animation: fadeIn 0.3s ease; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      font-size: 19px;
+      margin-bottom: 6px;
+      position: relative;
+      padding-left: 14px;
+    }
+
+    h2::before {
+      content: "";
+      width: 6px;
+      height: 22px;
+      background: linear-gradient(180deg, var(--ener-blue), var(--ener-yellow-soft));
+      position: absolute;
+      left: 0;
+      top: 2px;
+      border-radius: 999px;
+    }
+
+    .subtext {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    @media (min-width: 768px) and (max-width: 1024px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    .kpi-card {
+      background:
+        radial-gradient(circle at top left, rgba(20,93,160,0.4), transparent 60%),
+        linear-gradient(145deg, #020617, #020617);
+      padding: 14px 14px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(31,41,55,0.9);
+      box-shadow:
+        0 16px 36px rgba(0,0,0,0.9),
+        0 0 22px rgba(20,93,160,0.4);
+      transition: 0.18s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 22px 46px rgba(0,0,0,1), 0 0 30px rgba(249,168,37,0.65);
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .kpi-value {
+      font-size: 22px;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    .table-wrapper {
+      background: linear-gradient(
+        135deg,
+        rgba(15,23,42,0.98),
+        rgba(15,23,42,0.96)
+      );
+      padding: 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(31,41,55,0.9);
+      margin-top: 22px;
+      overflow-x: auto;
+      box-shadow:
+        0 16px 35px rgba(0,0,0,0.9),
+        0 0 18px rgba(20,93,160,0.35);
+      max-height: 500px;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(55,65,81,0.85);
+      font-size: 13px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    thead th {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9ca3af;
+      position: sticky;
+      top: 0;
+      background: rgba(15,23,42,0.98);
+      z-index: 10;
+    }
+
+    tbody tr:hover {
+      background: radial-gradient(circle at left, rgba(20,93,160,0.28), transparent 60%);
+    }
+
+    .btn-outline {
+      padding: 5px 12px;
+      font-size: 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(20,93,160,0.9);
+      background: rgba(15,23,42,0.95);
+      color: #dbeafe;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .btn-outline:hover {
+      background: rgba(20,93,160,0.35);
+      color: white;
+    }
+
+    .primary-button {
+        background: linear-gradient(90deg, var(--ener-blue), var(--ener-yellow));
+        border: none;
+        padding: 10px 20px;
+        color: #000;
+        font-weight: bold;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.2s;
+        width: 100%;
+        max-width: 300px;
+    }
+    .primary-button:hover {
+        transform: scale(1.02);
+    }
+
+    .badge-risk {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    .risk-low { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
+    .risk-mid { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid #eab308; }
+    .risk-high { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+
+    .trafo-card {
+      background: rgba(10,15,30,0.80);
+      padding: 16px 16px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(70,80,100,0.35);
+      margin-top: 18px;
+      font-size: 14px;
+      position: relative;
+      overflow: hidden;
+      max-width: 600px;
+    }
+
+    .trafo-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 5px;
+    }
+    
+    .trafo-row:last-child { border-bottom: none; }
+
+    .health-bar {
+      height: 10px;
+      width: 100%;
+      background: rgba(255,255,255,0.1);
+      border-radius: 999px;
+      margin: 15px 0;
+      overflow: hidden;
+    }
+
+    .health-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ef4444, #eab308, #22c55e);
+      width: 0%;
+      transition: width 1s ease-out;
+    }
+
+    #opt-result {
+        background: rgba(0,0,0,0.3);
+        padding: 10px;
+        border-radius: 8px;
+        border-left: 4px solid var(--ener-blue);
+        display: none;
+        margin-top: 10px;
+    }
+    
+    .overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 40;
+    }
+    .overlay.active { display: block; }
+
+  </style>
+</head>
+
+
+<body>
+
+<!-- Mobil Menü Butonu -->
+<button class="mobile-menu-btn" id="menu-toggle">
+    ☰ MENÜ
+</button>
+
+<!-- Arka plan karartma -->
+<div class="overlay" id="overlay"></div>
+
+<div class="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-box">
+      <img 
+        src="static/Gemini_Generated_Image_YTD.png" 
+        class="team-logo" 
+        alt="YTD Learning Logo"
+        onerror="this.style.display='none'"
+      >
+      
+      <div>
+        <div class="logo-title">YTD Learning</div>
+        <div class="logo-sub">ML ile Yatırım &amp; Bakım</div>
+      </div>
+    </div>
+
+    <div class="menu-group-label">MENÜ</div>
+    <button class="menu-btn active" data-view="dashboard">
+      <div class="menu-dot"></div>
+      <span class="label">Genel Bakış</span>
+    </button>
+    <button class="menu-btn" data-view="assets">
+      <div class="menu-dot"></div>
+      <span class="label">Varlık Listesi</span>
+    </button>
+    <button class="menu-btn" data-view="detail">
+      <div class="menu-dot"></div>
+      <span class="label">Varlık Profili</span>
+    </button>
+  </aside>
+
+
+  <main class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="top-title">
+          Yatırım & Bakım Karar Destek Sistemi
+          <span class="top-pill">v1.3 Full Data (456 Varlık)</span>
+        </div>
+        <div class="top-subtitle">
+          Gerçek saha verileri üzerinde optimizasyon ve risk analizi.
+        </div>
+      </div>
+      <div class="topbar-right-pill">
+        YÖNETİCİ MODU
+      </div>
+    </header>
+
+
+    <section class="content">
+
+      <!-- DASHBOARD VIEW -->
+      <div id="dashboard" class="view active">
+        <h2>Şebeke Özeti</h2>
+        <p class="subtext">
+          Sahadaki toplam varlıkların güncel sağlık ve risk durumları.
+        </p>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Toplam Varlık</div>
+            <div class="kpi-value" id="kpi-total">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Yüksek Riskli Varlık</div>
+            <div class="kpi-value" id="kpi-high-risk" style="color: #ef4444;">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Ortalama Sağlık Endeksi</div>
+            <div class="kpi-value" id="kpi-avg-health">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Yatırım Bütçesi (Birim)</div>
+            <div class="kpi-value" id="kpi-budget">-</div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ASSETS LIST VIEW -->
+      <div id="assets" class="view">
+        <h2>Varlık Yönetimi ve Optimizasyon</h2>
+        <p class="subtext">
+          Aşağıdaki listeden varlıkları inceleyebilir veya mevcut bütçe kısıtlarına göre yapay zeka tabanlı yatırım planı oluşturabilirsiniz.
+        </p>
+
+        <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;">
+            <button id="run-optimization-btn" class="primary-button">
+            Optimizasyonu Çalıştır
+            </button>
+            <span id="opt-result"></span>
+        </div>
+
+        <div id="demo-output" style="margin-top:15px; margin-bottom:15px; font-size:13px; color:#e5e7eb; display:none;"></div>
+
+        <div class="table-wrapper">
+          <table id="assets-table">
+            <thead>
+              <tr>
+                <th>Talep No</th>
+                <th>Grup</th>
+                <th>Operasyon</th>
+                <th>SAIDI</th>
+                <th>SAIFI</th>
+                <th>Maliyet</th>
+                <th>Sağlık Skoru</th>
+                <th>Risk</th>
+                <th>İşlem</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- JS ile doldurulacak -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <!-- DETAIL VIEW -->
+      <div id="detail" class="view">
+        <h2>Varlık Detay Profili</h2>
+        <p class="subtext">
+            Seçilen varlığın teknik parametreleri ve sağlık geçmişi.
+        </p>
+
+        <div class="trafo-card" id="detail-card" style="display:none;">
+          <div class="trafo-row">
+            <div><strong>Talep No:</strong> <span class="d-talep">-</span></div>
+            <div><strong>Grup:</strong> <span class="d-grup">-</span></div>
+          </div>
+          
+          <div class="trafo-row">
+            <div><strong>Operasyon Türü:</strong> <span class="d-tur" style="color:var(--ener-yellow)">-</span></div>
+            <div><strong>Maliyet:</strong> <span class="d-maliyet">-</span> birim</div>
+          </div>
+
+          <div style="margin-top: 15px; margin-bottom: 5px; font-size: 12px; color: #9ca3af;">SAĞLIK ENDEKSİ (0 = Kötü, 100 = İyi)</div>
+          <div class="health-bar">
+            <div class="health-fill"></div>
+          </div>
+          <div style="text-align: right; font-size: 18px; font-weight: bold;" class="d-health-val">-</div>
+
+          <div class="trafo-row" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+             <div><strong>SAIDI:</strong> <span class="d-saidi">-</span></div>
+             <div><strong>SAIFI:</strong> <span class="d-saifi">-</span></div>
+          </div>
+        </div>
+        
+        <p id="detail-placeholder" style="color: var(--text-muted); margin-top: 20px;">Lütfen listeden bir varlık seçiniz.</p>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+<!-- =======================================================================
+     VERİ VE MANTIK KATMANI
+     ======================================================================= -->
+<script>
+  // MODEL DATA'DAN ALINAN TAM VERİ (456 Adet)
+  // Python model_data.py'dan parse edilmiştir.
+  
+  // Tüm veriyi tek bir JSON dizisi olarak tutuyoruz (Sıkıştırılmış format)
+  // Sıra: [ID, TALEP_NO, SAIDI, SAIFI, COST, HEALTH, GROUP, YB(1=Yatırım), K(1=Kamu)]
+  const fullData = [
+    [1,322,0.33180901,0.33180901,13,6235,"Trafo",1,1],
+    [2,500,0.862997832,0.862997832,46,4520,"Kesici",0,0],
+    [3,656,0.066558527,0.066558527,59,6055,"Kesici",1,0],
+    [4,945,0.066558527,0.066558527,53,3025,"Kesici",1,0],
+    [5,1599,0.537693373,0.537693373,76,5260,"Kesici",1,0],
+    [6,2241,0.862997832,0.862997832,52,4500,"Trafo",0,0],
+    [7,2682,0.33180901,0.33180901,47,3415,"Kablo",1,0],
+    [8,4747,0.537693373,0.537693373,57,5585,"Kablo",1,0],
+    [9,4762,0.248416738,0.248416738,72,6925,"Kesici",1,0],
+    [10,4824,0.33180901,0.33180901,79,5435,"Trafo",1,0],
+    [11,4851,0.33180901,0.33180901,34,3545,"Kablo",1,0],
+    [12,5271,0.537693373,0.537693373,49,4295,"Kablo",1,0],
+    [13,5431,0.135681089,0.135681089,23,5195,"Kablo",1,0],
+    [14,6518,0.515952904,0.501842609,45,3260,"Kablo",0,0],
+    [15,6656,0.248416738,0.248416738,86,6260,"Kesici",0,1],
+    [16,6679,0.515952904,0.501842609,36,3285,"Kesici",0,0],
+    [17,6720,0.248416738,0.248416738,69,5045,"Trafo",1,0],
+    [18,6724,0.248416738,0.248416738,95,6910,"Kablo",1,0],
+    [19,6766,0.862997832,0.862997832,62,4205,"Trafo",1,0],
+    [20,7153,0.135681089,0.135681089,88,6405,"Kesici",1,0],
+    [21,7298,0.515952904,0.501842609,96,7020,"Trafo",0,0],
+    [22,7611,0.537693373,0.537693373,84,6130,"Kablo",0,0],
+    [23,7688,0.537693373,0.537693373,32,6380,"Kesici",1,0],
+    [24,7855,0.537693373,0.537693373,58,4815,"Trafo",1,0],
+    [25,7908,0.515952904,0.501842609,41,2970,"Kesici",0,0],
+    [26,8335,0.537693373,0.537693373,64,4465,"Kablo",1,0],
+    [27,8392,0.537693373,0.537693373,76,5560,"Trafo",1,0],
+    [28,8417,0.537693373,0.537693373,56,4085,"Kablo",0,0],
+    [29,8681,0.537693373,0.537693373,91,6605,"Kablo",1,0],
+    [30,8721,0.537693373,0.537693373,83,6025,"Kesici",0,0],
+    [31,9118,0.248416738,0.248416738,85,6160,"Kesici",1,0],
+    [32,9143,0.248416738,0.248416738,65,7240,"Kablo",0,0],
+    [33,9220,0.537693373,0.537693373,72,6040,"Trafo",1,0],
+    [34,9876,0.137703054,0.137703054,52,5385,"Trafo",1,0],
+    [35,1,0.000043478,0.000043478,16,1110,"Kablo",1,0],
+    [36,3,0.00029378,0.00014897,18,1280,"Kablo",1,0],
+    [37,8,0.000299736,0.000299736,44,3210,"Trafo",0,0],
+    [38,10,0.001072926,0.00091461,42,3020,"Kesici",1,0],
+    [39,11,0.000894122,0.000894122,29,2095,"Kablo",1,0],
+    [40,12,0.002334634,0.002334634,34,2450,"Kesici",1,0],
+    [41,13,0.006634361,0.006634361,38,2735,"Trafo",1,0],
+    [42,17,0.000376591,0.000376591,42,3010,"Trafo",0,0],
+    [43,18,0.00178135,0.00178135,10,720,"Trafo",1,0],
+    [44,19,0.018841131,0.018841131,27,1945,"Trafo",1,0],
+    [45,24,0.291650435,0.291650435,63,4565,"Trafo",0,0],
+    [46,46,0.015358018,0.015358018,60,4345,"Trafo",1,0],
+    [47,47,0.012523667,0.009081051,73,5320,"Trafo",1,0],
+    [48,49,0.001888089,0.001888089,33,2410,"Kablo",0,0],
+    [49,51,0.000597756,0.000597756,72,5200,"Kesici",1,0],
+    [50,52,0.001445437,0.001445437,12,825,"Kesici",1,0],
+    [51,53,0.000172265,0.000172265,33,2410,"Kablo",1,0],
+    [52,54,0.000024307,0.000024307,61,4440,"Kablo",1,0],
+    [53,58,0.029261347,0.015781347,15,1095,"Kesici",1,0],
+    [54,62,0.063348888,0.063348888,35,2535,"Trafo",1,0],
+    [55,63,0.008276946,0.008276946,51,3700,"Trafo",1,1],
+    [56,74,0.000123122,0.000123122,52,3805,"Kesici",1,0],
+    [57,75,0.003703382,0.003703382,33,2390,"Trafo",1,0],
+    [58,76,0.001282543,0.001282543,49,3530,"Kesici",1,0],
+    [59,77,0.004857273,0.004857273,7,495,"Trafo",0,0],
+    [60,80,0.004204752,0,32,2324,"Kablo",1,0],
+    [61,81,0.000501606,0.000501606,47,3440,"Trafo",1,1],
+    [62,83,0.000708039,0.000708039,43,3139,"Trafo",1,0],
+    [63,86,0.006662167,0.006662167,58,4185,"Kesici",1,0],
+    [64,90,0.002249883,0.002249883,43,3130,"Kesici",0,0],
+    [65,92,0.04706769,0.04706769,64,4630,"Kablo",0,0],
+    [66,96,0.000856501,0.000856501,57,4165,"Kablo",1,1],
+    [67,97,0.060519238,0.060519238,71,5180,"Kesici",1,0],
+    [68,98,0.021339419,0.016248393,33,2410,"Trafo",1,0],
+    [69,101,0.000042618,0.000042618,10,680,"Kablo",0,0],
+    [70,103,0.001787903,0.001297834,53,3824,"Kesici",0,0],
+    [71,105,0.003887724,0.003887724,47,3370,"Kesici",0,1],
+    [72,109,0.003013466,0.003013466,39,2825,"Kesici",0,0],
+    [73,111,0.007799084,0.007799084,67,4875,"Trafo",0,0],
+    [74,112,0.032492547,0.032492547,51,3715,"Kesici",1,0],
+    [75,113,0.019226846,0.019226846,64,4640,"Trafo",1,0],
+    [76,114,0.000024546,0.000024546,27,1945,"Trafo",1,0],
+    [77,117,0.000024423,0.000024423,35,2540,"Kesici",1,0],
+    [78,120,0.014745769,0.014745769,65,4700,"Kesici",0,0],
+    [79,121,0.002602642,0.002602642,11,775,"Trafo",1,1],
+    [80,122,0.002995818,0.002995818,62,4490,"Kablo",1,0],
+    [81,123,0.005798173,0.005798173,70,5060,"Kesici",1,0],
+    [82,129,0.021475224,0.021475224,99,7210,"Kesici",1,0],
+    [83,134,0.00063983,0.00063983,37,2690,"Trafo",1,0],
+    [84,141,0.003579796,0.002970648,10,725,"Kesici",1,0],
+    [85,143,0.000036446,0.000036446,59,4280,"Kablo",0,0],
+    [86,144,0.000030266,0.000030266,63,4575,"Trafo",1,0],
+    [87,145,0.006546509,0.006546509,57,4100,"Kablo",0,0],
+    [88,148,0.007543766,0.007543766,14,975,"Trafo",0,0],
+    [89,149,0.002454151,0.002454151,49,3585,"Kesici",1,0],
+    [90,152,0.000778228,0.000778228,47,3440,"Trafo",1,0],
+    [91,153,0.000048516,0.000048516,45,3245,"Trafo",1,0],
+    [92,156,0.007351811,0.007351811,8,565,"Kesici",1,0],
+    [93,161,0.027945825,0.027945825,47,3370,"Kesici",0,0],
+    [94,162,0.001157662,0.001157662,7,490,"Kesici",0,0],
+    [95,164,0.026897202,0.026897202,51,3695,"Trafo",1,1],
+    [96,165,0.000141677,0.000141677,50,3655,"Kesici",1,1],
+    [97,169,0.009956945,0.009956945,53,3880,"Kablo",1,0],
+    [98,173,0.008734352,0.008734352,67,4835,"Trafo",1,0],
+    [99,175,0.003572013,0.003572013,44,3210,"Kesici",0,0],
+    [100,178,0.002186135,0.002186135,29,2095,"Kesici",1,0],
+    [101,180,0.001963226,0.001963226,32,2275,"Kablo",1,0],
+    [102,183,0.000590477,0.000590477,59,4310,"Trafo",1,0],
+    [103,184,0.008434094,0.008434094,57,4170,"Trafo",1,0],
+    [104,191,0.00105744,0.00105744,73,5320,"Trafo",1,0],
+    [105,192,0.000014485,0.000014485,48,3496,"Kablo",1,1],
+    [106,194,0.013857283,0.013857283,32,2300,"Kablo",1,0],
+    [107,199,0.002284004,0.002284004,32,2290,"Kesici",0,0],
+    [108,203,0.000184814,0.000184814,55,3965,"Kesici",0,0],
+    [109,205,0.686791011,0.686791011,62,4485,"Trafo",1,1],
+    [110,207,0.000255384,0.000255384,61,4430,"Kablo",1,0],
+    [111,211,0.000387362,0.000387362,58,4195,"Trafo",1,0],
+    [112,224,0.000455325,0.000455325,70,5075,"Kesici",1,0],
+    [113,229,0.000118291,0.000118291,34,2443,"Kablo",1,0],
+    [114,232,0.007546733,0.005363579,13,905,"Trafo",1,0],
+    [115,238,0.000022802,0.000022802,34,2440,"Trafo",0,0],
+    [116,254,0.000048788,0.000048788,55,3980,"Kablo",0,1],
+    [117,258,0.000248112,0.000248112,36,2595,"Kesici",1,1],
+    [118,261,0.004096627,0.004096627,37,2685,"Trafo",0,0],
+    [119,262,0.105855832,0.105855832,24,1730,"Kesici",0,0],
+    [120,264,0.000278773,0.000278773,59,4250,"Kesici",1,0],
+    [121,265,0.000193496,0.000193496,9,620,"Trafo",1,0],
+    [122,266,0.001864914,0.001864914,59,4290,"Trafo",1,0],
+    [123,267,0.000055047,0.000055047,70,5095,"Kablo",1,0],
+    [124,269,0.037728049,0.037728049,44,3155,"Kesici",0,0],
+    [125,274,0.000107911,0.000107911,27,1967,"Trafo",1,0],
+    [126,277,0.508205607,0.508205607,70,5108,"Kesici",1,0],
+    [127,279,0.000537823,0.000537823,58,4230,"Kesici",0,0],
+    [128,283,0.624934016,0.624934016,44,3165,"Trafo",0,0],
+    [129,284,0.005141729,0.005141729,50,3650,"Kablo",1,1],
+    [130,287,0.056996372,0.056996372,34,2436,"Kesici",0,0],
+    [131,290,0.081149429,0.081149429,10,710,"Trafo",0,0],
+    [132,296,0.003861568,0.003861568,37,2650,"Trafo",1,0],
+    [133,297,0.002268971,0.002268971,57,4110,"Trafo",1,0],
+    [134,300,0.000340468,0.000340468,25,1825,"Trafo",1,0],
+    [135,303,0.004053323,0.004053323,56,4045,"Trafo",0,0],
+    [136,305,0.04541161,0.04541161,70,5115,"Kablo",1,0],
+    [137,306,0.003964362,0.003964362,28,2050,"Kablo",1,0],
+    [138,310,0.001068244,0.001068244,13,955,"Kesici",1,0],
+    [139,312,0.001385852,0.001385852,61,4460,"Trafo",0,0],
+    [140,317,0.012635151,0.012635151,39,2798,"Kesici",1,0],
+    [141,319,0.000137154,0.000137154,26,1850,"Kablo",1,0],
+    [142,320,0.000073486,0.000073486,53,3830,"Kesici",1,0],
+    [143,325,0.001935789,0.001935789,11,750,"Kablo",1,0],
+    [144,326,0.001722447,0.001722447,42,3030,"Trafo",1,0],
+    [145,327,0.002797792,0.002797792,36,2600,"Trafo",1,0],
+    [146,328,0.03588635,0.03588635,45,3280,"Kesici",1,0],
+    [147,329,0.000037693,0.000037693,28,1985,"Trafo",1,0],
+    [148,330,0.142803422,0.142803422,15,1075,"Trafo",1,0],
+    [149,331,0.003703382,0.003703382,40,2875,"Kablo",1,0],
+    [150,335,0.000087373,0.000087373,61,4425,"Trafo",0,0],
+    [151,336,0.029250042,0.029250042,53,3875,"Kablo",0,0],
+    [152,340,0.008974815,0.008974815,66,4825,"Trafo",1,0],
+    [153,342,0.000051065,0.000051065,53,3870,"Trafo",1,0],
+    [154,343,0.010608181,0.010608181,27,1945,"Trafo",1,0],
+    [155,346,0.0000351,0.0000351,7,485,"Trafo",0,0],
+    [156,351,0.000114182,0.000114182,50,3660,"Kablo",1,0],
+    [157,354,0.005133909,0.005133909,67,4885,"Kesici",0,0],
+    [158,355,0.004001678,0.004001678,55,4005,"Kablo",0,0],
+    [159,356,0.018683086,0.018683086,32,2330,"Kesici",1,0],
+    [160,359,0.039321996,0.035907512,66,4805,"Kesici",0,0],
+    [161,361,0.000322334,0.000322334,24,1700,"Kablo",1,0],
+    [162,362,0.000047308,0.000047308,11,780,"Kesici",1,0],
+    [163,373,0.000458353,0.000458353,41,2995,"Trafo",0,0],
+    [164,376,0.00492225,0.00492225,70,5100,"Kablo",1,0],
+    [165,378,0.009767554,0.005154923,13,890,"Kesici",1,0],
+    [166,379,0.000470811,0.000470811,20,1399,"Kesici",0,0],
+    [167,380,0.00112332,0.00112332,30,2200,"Kablo",1,0],
+    [168,382,0.000336591,0.000336591,11,810,"Kesici",1,0],
+    [169,384,0.00099033,0.00099033,29,2110,"Trafo",1,0],
+    [170,385,0.002153229,0.002153229,33,2390,"Trafo",0,0],
+    [171,391,0.002446041,0.002446041,57,4115,"Trafo",0,0],
+    [172,392,0.001870993,0,35,2504,"Kesici",1,0],
+    [173,395,0.000553244,0.000553244,45,3250,"Kesici",1,0],
+    [174,399,0.000593871,0.000593871,59,4295,"Trafo",0,0],
+    [175,402,0.003948596,0.003948596,40,2870,"Trafo",1,0],
+    [176,404,0.000135417,0.000135417,63,4560,"Kesici",0,0],
+    [177,405,0.034153386,0.024429505,42,3035,"Kesici",0,0],
+    [178,409,0.014009971,0.014009971,24,1690,"Kesici",1,0],
+    [179,410,0.025204023,0.025204023,63,4558,"Trafo",0,0],
+    [180,411,0.000066192,0.000066192,57,4160,"Kablo",1,0],
+    [181,413,0.00350157,0.00350157,11,755,"Trafo",0,0],
+    [182,414,0.106707136,0.106707136,22,1595,"Trafo",0,0],
+    [183,415,0.010326587,0.010326587,14,975,"Trafo",1,0],
+    [184,418,0.00040031,0.00040031,10,700,"Kesici",1,0],
+    [185,421,0.016222447,0.011233762,43,3091,"Kesici",0,0],
+    [186,425,0.001889649,0.000762959,12,845,"Kablo",0,0],
+    [187,426,0.000080866,0,52,3754,"Trafo",0,0],
+    [188,427,0.004782191,0.003285141,38,2775,"Kesici",1,0],
+    [189,428,0.103632587,0.103632587,33,2370,"Kesici",0,0],
+    [190,439,0.140043363,0.140043363,45,3250,"Trafo",1,0],
+    [191,443,0.005148609,0.005148609,47,3370,"Trafo",1,0],
+    [192,447,0.002474116,0.002474116,31,2260,"Kesici",1,0],
+    [193,450,0.000570921,0.000570921,37,2662,"Kesici",0,0],
+    [194,451,0.000019995,0.000019995,51,3689,"Kesici",1,0],
+    [195,453,0.000918208,0.000297048,15,1045,"Trafo",1,0],
+    [196,457,0.002778588,0.002778588,42,3030,"Kablo",0,0],
+    [197,460,0.352528634,0.352528634,42,3020,"Kablo",0,0],
+    [198,468,0.008178544,0.008178544,60,4370,"Kesici",1,0],
+    [199,661,0.000073243,0.000073243,25,1816,"Kablo",1,0],
+    [200,663,0.001473374,0.001473374,36,2622,"Kablo",0,0],
+    [201,668,0.000408637,0.000408637,34,2450,"Kablo",0,0],
+    [202,674,0.011658241,0.011658241,48,3455,"Kesici",1,0],
+    [203,675,0.000011627,0.000011627,63,4580,"Kesici",1,0],
+    [204,676,0.000356944,0.000356944,32,2345,"Kablo",0,0],
+    [205,677,0.000764236,0.000764236,20,1455,"Kablo",1,0],
+    [206,678,0.001304921,0.001304921,12,830,"Trafo",0,1],
+    [207,679,0.002089405,0.002089405,36,2590,"Trafo",1,0],
+    [208,682,0.001574003,0.001574003,33,2415,"Trafo",0,0],
+    [209,683,0.000729938,0.000729938,37,2700,"Kablo",1,0],
+    [210,687,0.003113761,0.003113761,46,3305,"Kesici",1,0],
+    [211,689,0.001789455,0.001789455,47,3370,"Kablo",1,0],
+    [212,691,0.000020513,0.000020513,50,3645,"Kablo",1,0],
+    [213,695,0.00058211,0.00058211,39,2825,"Trafo",1,0],
+    [214,701,0.00058574,0.00058574,39,2835,"Trafo",1,0],
+    [215,702,0.001590468,0.001590468,52,3790,"Trafo",1,0],
+    [216,703,0.001209257,0.001209257,72,5200,"Kablo",0,1],
+    [217,704,0.17174782,0.17174782,38,2735,"Trafo",1,0],
+    [218,710,0.033132935,0.033132935,34,2440,"Kesici",1,0],
+    [219,715,0.000762858,0.000272517,40,2930,"Kesici",1,0],
+    [220,716,0.467327343,0.467327343,48,3515,"Trafo",0,0],
+    [221,717,0.000671245,0.000671245,57,4125,"Trafo",0,0],
+    [222,721,0.044233888,0.035630198,58,4235,"Trafo",0,0],
+    [223,722,0.064658077,0.064658077,22,1545,"Trafo",1,0],
+    [224,724,0.035650508,0.035650508,12,850,"Kablo",1,0],
+    [225,728,0.266913005,0.266913005,25,1800,"Trafo",1,0],
+    [226,729,0.000410041,0.000410041,43,3100,"Kesici",1,0],
+    [227,736,0.000729618,0.000729618,44,3200,"Kesici",0,0],
+    [228,738,0.001379281,0.000979522,9,605,"Trafo",1,0],
+    [229,740,0.012077569,0.012077569,63,4575,"Trafo",1,0],
+    [230,744,0.002916631,0.002916631,26,1860,"Kesici",0,1],
+    [231,746,0.003438641,0.003438641,77,5630,"Trafo",1,0],
+    [232,747,0.008890141,0.008890141,54,3920,"Kesici",1,0],
+    [233,749,0.000387156,0.000387156,43,3120,"Kesici",0,0],
+    [234,750,0.003377356,0.003377356,66,4765,"Trafo",0,0],
+    [235,751,0.000049832,0.000049832,12,865,"Trafo",0,0],
+    [236,757,0.0006823,0.0006823,62,4520,"Kablo",0,0],
+    [237,760,0.000152869,0.000152869,40,2885,"Kesici",1,0],
+    [238,763,0.000484393,0.000484393,38,2770,"Kesici",1,0],
+    [239,775,0.001584615,0.001584615,46,3325,"Trafo",1,0],
+    [240,776,0.010081362,0.010081362,55,3985,"Trafo",0,0],
+    [241,777,0.002561409,0.002561409,60,4345,"Kablo",0,0],
+    [242,779,0.000280637,0.000280637,44,3170,"Kablo",0,0],
+    [243,782,0.003181803,0.003181803,23,1678,"Kablo",1,0],
+    [244,786,0.000237003,0.000237003,49,3550,"Trafo",1,0],
+    [245,787,0.00338873,0.00338873,59,4270,"Kesici",1,0],
+    [246,798,0.010081362,0.010081362,29,2120,"Kesici",1,0],
+    [247,799,0.328275412,0.328275412,49,3525,"Kesici",1,0],
+    [248,800,0.000114374,0.000114374,44,3175,"Kablo",1,0],
+    [249,802,0.000369693,0.000369693,30,2180,"Kablo",0,0],
+    [250,805,0.000934724,0.000934724,38,2740,"Kesici",0,0],
+    [251,807,0.084582605,0.084582605,35,2546,"Kesici",1,0],
+    [252,808,0.012560737,0.012560737,33,2378,"Trafo",1,1],
+    [253,809,0.005318759,0.004916879,48,3460,"Trafo",0,0],
+    [254,813,0.017243474,0.017243474,48,3480,"Kesici",1,0],
+    [255,814,0.031763556,0.031763556,8,580,"Kesici",1,0],
+    [256,822,0.000086579,0.000086579,23,1642,"Kesici",0,0],
+    [257,825,0.006656346,0.006656346,41,2976,"Trafo",0,0],
+    [258,826,0.000082386,0.000082386,46,3310,"Kablo",1,0],
+    [259,832,0.00183166,0.00183166,33,2356,"Trafo",1,0],
+    [260,834,0.127734695,0.127734695,54,3917,"Kesici",0,0],
+    [261,836,0.009109993,0.009109993,8,570,"Kablo",1,0],
+    [262,841,0.004894886,0.004894886,34,2485,"Kablo",1,0],
+    [263,844,0.000066871,0.000066871,70,5080,"Trafo",1,0],
+    [264,845,0.003430895,0.003430895,41,2935,"Kablo",1,0],
+    [265,849,0.001393751,0.001393751,31,2225,"Trafo",1,0],
+    [266,851,0.007943659,0.007943659,10,740,"Trafo",1,0],
+    [267,855,0.000301516,0.000301516,47,3395,"Trafo",1,0],
+    [268,856,0.009532035,0.009532035,21,1530,"Kablo",1,0],
+    [269,860,0.00312948,0.00312948,46,3320,"Kesici",1,0],
+    [270,861,0.011866882,0.011866882,51,3695,"Kesici",0,0],
+    [271,865,0.025824562,0.025824562,78,5651,"Kablo",0,0],
+    [272,868,0.209689898,0.209689898,45,3250,"Kesici",1,0],
+    [273,871,0.136993952,0.136993952,74,5365,"Kesici",0,0],
+    [274,881,0.003441597,0.003441597,47,3410,"Trafo",1,0],
+    [275,887,0.011866882,0.011866882,37,2645,"Kablo",1,0],
+    [276,888,0.000017811,0.000017811,42,3020,"Kablo",0,0],
+    [277,889,0.002761086,0.002761086,10,740,"Trafo",1,0],
+    [278,899,0.000867846,0.000867846,36,2630,"Kablo",1,0],
+    [279,900,0.005219247,0.005219247,61,4420,"Kablo",1,0],
+    [280,904,0.356622279,0.356622279,83,6020,"Trafo",0,0],
+    [281,906,0.001417489,0.001417489,57,4125,"Kesici",0,0],
+    [282,907,0.000113591,0.000113591,56,4045,"Kablo",0,0],
+    [283,908,0.002327601,0.002327601,47,3420,"Kesici",1,0],
+    [284,914,0.236917191,0.236917191,9,645,"Kesici",1,0],
+    [285,915,0.004590022,0.004590022,48,3485,"Trafo",1,0],
+    [286,916,0.011866882,0.011866882,55,4000,"Trafo",0,0],
+    [287,917,0.037893728,0.026876188,52,3790,"Kablo",1,0],
+    [288,919,0.000112249,0.000112249,16,1120,"Kesici",0,0],
+    [289,920,0.000276807,0.000276807,20,1420,"Kesici",1,0],
+    [290,922,0.000036195,0.000036195,50,3645,"Kablo",1,0],
+    [291,924,0.000430993,0.000046611,9,660,"Trafo",0,0],
+    [292,926,0.015285083,0.015285083,47,3440,"Trafo",0,0],
+    [293,928,0.03019186,0.03019186,15,1090,"Kesici",1,0],
+    [294,929,0.009371919,0.009371919,43,3150,"Kablo",1,0],
+    [295,930,0.012012182,0.012012182,11,805,"Kesici",0,0],
+    [296,933,0.01015792,0.01015792,38,2770,"Kesici",1,0],
+    [297,935,0.023898261,0.023898261,42,3020,"Kablo",1,0],
+    [298,943,0.019199102,0.019199102,50,3600,"Kablo",0,0],
+    [299,947,0.000617536,0.000617536,63,4560,"Trafo",0,0],
+    [300,948,0.031819463,0.031819463,40,2906,"Kesici",1,0],
+    [301,949,0.000017191,0.000017191,48,3515,"Trafo",0,0],
+    [302,951,0.000025511,0.000025511,55,4015,"Trafo",1,0],
+    [303,953,0.00066817,0.00066817,9,665,"Trafo",1,0],
+    [304,954,0.031873625,0.031873625,9,640,"Trafo",1,0],
+    [305,955,0.000474732,0.000474732,51,3725,"Kesici",1,0],
+    [306,957,0.001206675,0.001206675,84,6115,"Trafo",1,1],
+    [307,963,0.017445065,0.017445065,52,3790,"Kesici",1,0],
+    [308,965,0.000173288,0.000173288,70,5110,"Kablo",0,0],
+    [309,966,0.090150002,0.069019891,14,975,"Kablo",0,0],
+    [310,967,0.01290419,0.01290419,36,2570,"Trafo",1,0],
+    [311,969,0.027458392,0.027458392,82,5985,"Trafo",0,0],
+    [312,970,0.008287344,0.008287344,67,4880,"Kesici",1,0],
+    [313,971,0.000449054,0.000449054,64,4680,"Kesici",1,0],
+    [314,974,0.001668031,0.001668031,11,800,"Trafo",1,0],
+    [315,975,0.000078977,0.000078977,15,1035,"Kesici",1,0],
+    [316,976,0.000023103,0.000023103,55,3975,"Kesici",1,0],
+    [317,977,0.014001731,0.014001731,58,4185,"Kesici",1,0],
+    [318,978,0.026865021,0.026865021,58,4205,"Kablo",0,0],
+    [319,979,0.003288391,0.003288391,7,475,"Kablo",1,0],
+    [320,985,0.013170247,0.012076525,41,2985,"Kesici",1,0],
+    [321,988,0.221250726,0.221250726,27,1960,"Kablo",1,0],
+    [322,989,0.004889069,0.003740829,39,2812,"Kablo",1,0],
+    [323,993,0.017086431,0.010077017,61,4405,"Trafo",0,0],
+    [324,1000,0.001320102,0.001320102,47,3420,"Trafo",1,0],
+    [325,1001,0.000027339,0.000027339,12,815,"Kesici",1,0],
+    [326,1002,0.000049092,0,55,4026,"Kesici",1,0],
+    [327,1005,0.016426432,0.016426432,77,5620,"Trafo",1,0],
+    [328,1007,0.001925369,0.001925369,31,2206,"Kablo",1,0],
+    [329,1008,0.000035644,0,53,3854,"Trafo",1,0],
+    [330,1011,0.000046437,0.000046437,45,3290,"Kablo",1,0],
+    [331,1013,0.000995835,0.000995835,19,1385,"Trafo",1,0],
+    [332,1015,0.001447667,0.000966538,11,770,"Kablo",1,0],
+    [333,1016,0.006201888,0.001688344,22,1611,"Kablo",1,0],
+    [334,1017,0.000737372,0.000737372,36,2590,"Kesici",0,0],
+    [335,1018,0.00695668,0.00695668,47,3410,"Trafo",1,0],
+    [336,1021,0.018178194,0.018178194,62,4495,"Kablo",1,0],
+    [337,1027,0.008347628,0.004145937,40,2910,"Kablo",0,0],
+    [338,1028,0.002757691,0.002757691,70,5080,"Trafo",0,0],
+    [339,1030,0.076212254,0.067882615,75,5460,"Trafo",1,0],
+    [340,1033,0.000754915,0.000754915,26,1870,"Kablo",1,1],
+    [341,1034,0.000023103,0.000023103,55,3960,"Kablo",0,0],
+    [342,1040,0.004109393,0.004109393,59,4285,"Kablo",1,0],
+    [343,1041,0.015881007,0.015881007,47,3431,"Trafo",1,0],
+    [344,1052,0.007530532,0.007530532,48,3450,"Kablo",1,0],
+    [345,1053,0.001497604,0.001497604,21,1515,"Kesici",1,0],
+    [346,1054,0.000061442,0.000318795,13,925,"Trafo",1,0],
+    [347,1055,0.006429864,0.006429864,23,1655,"Trafo",0,0],
+    [348,1068,0.004249949,0.004249949,65,4725,"Kesici",1,0],
+    [349,1072,0.000231396,0.000231396,59,4300,"Trafo",1,0],
+    [350,1076,0.016549873,0.016549873,14,985,"Kablo",0,0],
+    [351,1077,0.00335281,0.00335281,57,4140,"Kesici",1,0],
+    [352,1081,0.000123299,0.000012346,24,1700,"Trafo",1,0],
+    [353,1084,0.000330944,0.000330944,53,3860,"Kesici",1,0],
+    [354,1088,0.006871411,0.006871411,16,1120,"Kablo",1,0],
+    [355,1090,0.010572719,0.010572719,71,5180,"Kesici",1,0],
+    [356,1094,0.000203064,0.000203064,31,2232,"Kesici",1,0],
+    [357,1097,0.000016807,0.000016807,48,3515,"Trafo",0,0],
+    [358,1098,0.017554797,0.012082241,12,825,"Trafo",0,0],
+    [359,1101,0.002021149,0.002021149,56,4030,"Trafo",1,0],
+    [360,1104,0.002700359,0.002700359,44,3204,"Trafo",0,0],
+    [361,1105,0.001031084,0.001031084,27,1945,"Trafo",1,0],
+    [362,1106,0.000142761,0.000142761,41,2940,"Kesici",1,0],
+    [363,1108,0.043519712,0.043519712,37,2670,"Kablo",1,0],
+    [364,1109,0.000034658,0.000034658,8,570,"Kesici",0,0],
+    [365,1110,0.000793664,0.000793664,11,785,"Kesici",1,0],
+    [366,1112,0.005453708,0.005453708,33,2375,"Trafo",0,0],
+    [367,1113,0.00158011,0.00158011,43,3080,"Kablo",0,0],
+    [368,1117,0.003676036,0.003676036,46,3310,"Trafo",1,0],
+    [369,1118,0.00014732,0.00014732,35,2495,"Trafo",1,0],
+    [370,1133,0.002342069,0.002342069,28,2050,"Trafo",1,0],
+    [371,1134,0.001594886,0.001594886,11,800,"Kesici",1,0],
+    [372,1136,0.00046565,0.00046565,7,510,"Kablo",1,0],
+    [373,1138,0.009161424,0.009161424,37,2679,"Trafo",1,1],
+    [374,1143,0.009325246,0.009325246,22,1610,"Trafo",0,0],
+    [375,1144,0.083998649,0.083998649,55,4015,"Kablo",1,0],
+    [376,1146,0.000374611,0.000374611,62,4510,"Trafo",1,0],
+    [377,1147,0.008626075,0.008626075,45,3280,"Trafo",1,0],
+    [378,1149,0.19048957,0.19048957,41,2945,"Kablo",1,0],
+    [379,1157,0.089531196,0.089531196,10,730,"Kablo",1,0],
+    [380,1160,0.608005829,0.608005829,49,3525,"Kablo",1,0],
+    [381,1171,0.008835906,0.008835906,44,3210,"Kablo",0,0],
+    [382,1172,0.013800394,0.013800394,51,3695,"Kablo",1,0],
+    [383,1183,0.691027034,0.691027034,63,4540,"Kablo",0,0],
+    [384,1184,0.001324444,0.001324444,12,825,"Trafo",1,0],
+    [385,1185,0.001349091,0.001349091,40,2900,"Kesici",1,0],
+    [386,1187,0.02411371,0.02411371,45,3225,"Trafo",0,0],
+    [387,1192,0.023505252,0.023505252,62,4515,"Trafo",0,0],
+    [388,1194,0.010378715,0.010378715,25,1820,"Trafo",0,0],
+    [389,1197,0.020906305,0.020906305,53,3815,"Trafo",0,0],
+    [390,1199,0.034451823,0.027925061,45,3290,"Trafo",1,0],
+    [391,1200,0.000199546,0.000199546,52,3800,"Kesici",1,0],
+    [392,1201,0.328275412,0.328275412,55,3970,"Trafo",1,0],
+    [393,1202,0.017243474,0.017243474,43,3125,"Kablo",0,0],
+    [394,1207,0.000104832,0.000104832,48,3485,"Kesici",1,0],
+    [395,1211,0.017728912,0.017728912,37,2670,"Trafo",1,0],
+    [396,1214,0.00024166,0.00024166,37,2685,"Trafo",1,0],
+    [397,1218,0.00869449,0.00869449,55,4020,"Kablo",1,0],
+    [398,1222,0.002115362,0.002115362,55,4025,"Kablo",0,0],
+    [399,1225,0.06311524,0.06311524,53,3830,"Kesici",1,0],
+    [400,1226,0.00001668,0.00001668,55,3960,"Trafo",0,0],
+    [401,1228,0.016953027,0.016953027,32,2310,"Kablo",0,0],
+    [402,1230,0.000177241,0.000177241,42,3035,"Kablo",1,0],
+    [403,1231,0.021777223,0.021777223,23,1680,"Trafo",1,0],
+    [404,1235,0.019341264,0.019341264,51,3711,"Trafo",1,0],
+    [405,1237,0.008276946,0.008276946,50,3655,"Kablo",1,0],
+    [406,1241,0.000846713,0.000846713,37,2641,"Trafo",1,0],
+    [407,1242,0.000317663,0.000317663,25,1800,"Kesici",0,1],
+    [408,1253,0.004191355,0.004191355,42,3015,"Kesici",1,0],
+    [409,1256,0.008712414,0.008712414,40,2900,"Kesici",1,0],
+    [410,1258,0.000185336,0.000185336,31,2235,"Kablo",1,0],
+    [411,1261,0.000187229,0.000187229,44,3215,"Trafo",1,0],
+    [412,1262,0.00099033,0.00099033,29,2090,"Kablo",0,0],
+    [413,1263,0.259932403,0.242159911,30,2195,"Kablo",1,0],
+    [414,1265,0.010570434,0.008904713,14,975,"Kesici",1,0],
+    [415,1271,0.000002067,0.000002067,13,905,"Kesici",1,0],
+    [416,1272,0.002816579,0.002816579,12,865,"Trafo",0,0],
+    [417,1274,0.000366788,0.000366788,29,2085,"Trafo",0,0],
+    [418,1275,0.010804655,0.010804655,38,2745,"Trafo",1,0],
+    [419,1277,0.0000969,0.0000969,70,5060,"Trafo",0,0],
+    [420,1280,0.001170911,0.001170911,43,3145,"Kesici",0,0],
+    [421,1281,0.03985691,0.03985691,50,3615,"Kesici",1,0],
+    [422,1283,0.005606051,0.005606051,69,5040,"Kesici",1,0],
+    [423,1285,0.000080819,0.000080819,70,5110,"Kesici",0,0],
+    [424,1286,0.006736767,0.006736767,39,2815,"Kesici",1,0],
+    [425,1287,0.032391291,0.032391291,58,4220,"Kablo",1,0],
+    [426,1288,0.001650669,0.001650669,60,4370,"Kesici",1,0],
+    [427,1290,0.000248431,0.000248431,37,2655,"Kesici",1,0],
+    [428,1291,0.017883221,0.017883221,58,4220,"Trafo",1,0],
+    [429,1299,0.009334328,0.009334328,39,2795,"Trafo",1,0],
+    [430,1304,0.000003397,0.00003397,30,2145,"Trafo",1,0],
+    [431,1305,0.000973436,0.000973436,44,3185,"Kablo",1,0],
+    [432,1306,0.00312948,0.00312948,50,3630,"Trafo",0,0],
+    [433,1307,0.00400545,0.00400545,42,3005,"Trafo",1,0],
+    [434,1310,0.0004888,0.0004888,38,2760,"Trafo",1,0],
+    [435,1313,0.001668031,0.001668031,24,1750,"Trafo",1,0],
+    [436,10742,0.003227766,0.003227766,42,3025,"Kesici",1,0],
+    [437,10743,0.024744274,0.024744274,47,3385,"Kablo",0,0],
+    [438,10750,0.001858154,0.001858154,42,3010,"Kablo",0,0],
+    [439,10753,0.00555808,0.00555808,25,1827,"Kesici",1,0],
+    [440,10755,0.020078677,0.001012772,11,800,"Kablo",1,0],
+    [441,10757,0.004398709,0.001239055,38,2722,"Trafo",1,0],
+    [442,10759,0.000006387,0,33,2386,"Trafo",0,0],
+    [443,10760,0.002304441,0.002304441,44,3210,"Kablo",1,0],
+    [444,10761,0.010506718,0.010506718,38,2730,"Kablo",0,0],
+    [445,10762,0.004696407,0.004696407,43,3140,"Kesici",1,0],
+    [446,10763,0.032215406,0.032215406,28,2045,"Trafo",1,0],
+    [447,10778,0.264675319,0.264675319,74,5375,"Kablo",1,0],
+    [448,10783,0.000061815,0.000045697,68,4910,"Trafo",0,0],
+    [449,10784,0.71274774,0.71274774,85,6210,"Kablo",1,0],
+    [450,10785,0.007977801,0.007977801,40,2870,"Kablo",1,0],
+    [451,10788,0.053188981,0.021953905,16,1145,"Trafo",1,0],
+    [452,10789,0.028379853,0.028379853,23,5765,"Trafo",0,0],
+    [453,10790,0.000383311,0.000383311,16,1175,"Kesici",1,0],
+    [454,10794,0.001161684,0.001161684,13,915,"Kesici",0,0],
+    [455,10795,0.000262946,0.000262946,33,2358,"Trafo",1,0],
+    [456,10797,0.001282612,0,11,790,"Kablo",0,0]
+  ];
+
+  // Parametreler
+  const BUDGET = 90;
+  const weights = { w1: 0.2, w2: 0.2, w3: 0.2, w4: 0.4 };
+
+  // Veri İşleme
+  const assetsData = fullData.map(item => {
+    // Array indexleri: [0:ID, 1:TALEP, 2:SAIDI, 3:SAIFI, 4:COST, 5:HEALTH, 6:GROUP, 7:YB, 8:K]
+    const rawHealth = item[5];
+    // Max sağlık değerini 7500 kabul ederek normalize ediyoruz
+    const health_ui = Math.min(Math.round((rawHealth / 7500) * 100), 100);
+
+    let risk_label = "Düşük";
+    if (health_ui < 50) risk_label = "Yüksek";
+    else if (health_ui < 75) risk_label = "Orta";
+
+    return {
+        id: item[0],
+        talep_no: item[1],
+        saidi: item[2],
+        saifi: item[3],
+        cost: item[4],
+        group: item[6],
+        category_public: item[8] === 1,
+        raw_health: rawHealth,
+        health_ui: health_ui,
+        risk_label: risk_label,
+        operation_type: item[7] === 1 ? "Yatırım" : "Bakım"
+    };
+  });
+
+  // KPI Hesaplama
+  const total_assets = assetsData.length;
+  const high_risk_count = assetsData.filter(a => a.risk_label === "Yüksek").length;
+  const avg_health = total_assets > 0 
+      ? (assetsData.reduce((sum, a) => sum + a.health_ui, 0) / total_assets).toFixed(1) 
+      : 0;
+
+  document.getElementById("kpi-total").textContent = total_assets;
+  document.getElementById("kpi-high-risk").textContent = high_risk_count;
+  document.getElementById("kpi-avg-health").textContent = avg_health + " / 100";
+  document.getElementById("kpi-budget").textContent = BUDGET;
+
+</script>
+
+<script>
+  // ---------------------------------------------------------
+  // INTERACTION LOGIC
+  // ---------------------------------------------------------
+  const sidebar = document.getElementById("sidebar");
+  const menuBtn = document.getElementById("menu-toggle");
+  const overlay = document.getElementById("overlay");
+
+  function toggleMenu() {
+      sidebar.classList.toggle("open");
+      overlay.classList.toggle("active");
+  }
+
+  menuBtn.onclick = toggleMenu;
+  overlay.onclick = toggleMenu;
+
+  document.querySelectorAll(".menu-btn").forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      document.getElementById(btn.dataset.view).classList.add("active");
+      if(window.innerWidth < 900) {
+          toggleMenu();
+      }
+    };
+  });
+
+  // Table Rendering (Virtual Scroll Mantığı Yok ama Limitleme Var)
+  const tableBody = document.querySelector("#assets-table tbody");
+  
+  // Tüm veriyi aynı anda render etmek mobilde kasabilir.
+  // Bu yüzden ilk 50 tanesini gösterip, aşağı indikçe yükletebiliriz veya sayfalama yapabiliriz.
+  // Şimdilik basitlik adına ilk 100'ü gösterelim.
+  function renderTable(data) {
+      tableBody.innerHTML = "";
+      // Performans için sadece ilk 100 kaydı göster
+      const limit = 100; 
+      
+      data.slice(0, limit).forEach(asset => {
+          const tr = document.createElement("tr");
+          
+          let riskClass = "risk-low";
+          if (asset.risk_label === "Orta") riskClass = "risk-mid";
+          if (asset.risk_label === "Yüksek") riskClass = "risk-high";
+
+          tr.innerHTML = `
+            <td data-label="Talep No">${asset.talep_no}</td>
+            <td data-label="Grup">${asset.group}</td>
+            <td data-label="Operasyon">${asset.operation_type}</td>
+            <td data-label="SAIDI">${asset.saidi.toFixed(4)}</td>
+            <td data-label="SAIFI">${asset.saifi.toFixed(4)}</td>
+            <td data-label="Maliyet">${asset.cost}</td>
+            <td data-label="Sağlık Skoru"><strong>${asset.health_ui}</strong></td>
+            <td data-label="Risk"><span class="badge-risk ${riskClass}">${asset.risk_label}</span></td>
+            <td data-label="İşlem"><button class="btn-outline" onclick="showDetail(${asset.id})">İncele</button></td>
+          `;
+          tableBody.appendChild(tr);
+      });
+
+      if(data.length > limit) {
+          const infoRow = document.createElement("tr");
+          infoRow.innerHTML = `<td colspan="9" style="text-align:center; color:var(--text-muted); padding:15px;">
+            ... ve ${data.length - limit} kayıt daha. (Performans için gizlendi)
+          </td>`;
+          tableBody.appendChild(infoRow);
+      }
+  }
+
+  renderTable(assetsData);
+
+  // Detail Logic
+  window.showDetail = function(id) {
+      const asset = assetsData.find(a => a.id === id);
+      if(!asset) return;
+
+      document.querySelector(".d-talep").textContent = asset.talep_no;
+      document.querySelector(".d-grup").textContent = asset.group;
+      document.querySelector(".d-tur").textContent = asset.operation_type;
+      document.querySelector(".d-maliyet").textContent = asset.cost;
+      document.querySelector(".d-health-val").textContent = asset.health_ui;
+      document.querySelector(".d-saidi").textContent = asset.saidi.toFixed(5);
+      document.querySelector(".d-saifi").textContent = asset.saifi.toFixed(5);
+      document.querySelector(".health-fill").style.width = asset.health_ui + "%";
+      document.getElementById("detail-card").style.display = "block";
+      document.getElementById("detail-placeholder").style.display = "none";
+
+      if(window.innerWidth < 900) {
+          document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
+          document.querySelector('[data-view="detail"]').classList.add("active");
+          document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+          document.getElementById("detail").classList.add("active");
+          window.scrollTo(0,0);
+      } else {
+          document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
+          document.querySelector('[data-view="detail"]').classList.add("active");
+          document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+          document.getElementById("detail").classList.add("active");
+      }
+  }
+
+  // Optimization Logic
+  document.getElementById("run-optimization-btn").onclick = () => {
+      const resultSpan = document.getElementById("opt-result");
+      const outputDiv = document.getElementById("demo-output");
+      
+      resultSpan.style.display = "block";
+      resultSpan.textContent = "Hesaplanıyor...";
+      resultSpan.style.color = "#fbbf24";
+      outputDiv.style.display = "none";
+
+      setTimeout(() => {
+          try {
+              const maxSaidi = Math.max(...assetsData.map(a => a.saidi)) || 1;
+              const maxSaifi = Math.max(...assetsData.map(a => a.saifi)) || 1;
+
+              const scoredAssets = assetsData.map(a => {
+                  const normSaidi = a.saidi / maxSaidi;
+                  const normSaifi = a.saifi / maxSaifi;
+                  const normHealthRisk = (100 - a.health_ui) / 100.0;
+                  const score = (weights.w1 * normSaidi) + (weights.w2 * normSaifi) + (weights.w4 * normHealthRisk);
+                  return { ...a, score: score };
+              });
+
+              scoredAssets.sort((a, b) => {
+                  const ratioA = a.score / Math.max(a.cost, 0.1);
+                  const ratioB = b.score / Math.max(b.cost, 0.1);
+                  return ratioB - ratioA;
+              });
+
+              let usedBudget = 0;
+              let totalObjective = 0;
+              const selected = [];
+
+              for (const asset of scoredAssets) {
+                  if (usedBudget + asset.cost <= BUDGET) {
+                      selected.push(asset);
+                      usedBudget += asset.cost;
+                      totalObjective += asset.score;
+                  }
+              }
+
+              resultSpan.textContent = `Tamamlandı! Amaç Değeri: ${totalObjective.toFixed(4)}`;
+              resultSpan.style.color = "#4ade80";
+
+              let html = `
+                <div style="background: rgba(20,93,160,0.2); padding: 15px; border-radius: 8px; border: 1px solid var(--ener-blue);">
+                    <h3 style="margin-bottom:10px; color: var(--ener-yellow);">Optimizasyon Sonucu</h3>
+                    <p>Mevcut Bütçe: <strong>${BUDGET}</strong></p>
+                    <p>Kullanılan Bütçe: <strong>${usedBudget}</strong></p>
+                    <p>Seçilen Varlık Sayısı: <strong>${selected.length}</strong></p>
+                    <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
+                    <p style="font-size:12px; margin-bottom:5px; color:#9ca3af;">ÖNCELİKLİ YATIRIM LİSTESİ (İlk 20 Kayıt):</p>
+                    <ul style="padding-left: 20px; font-size: 13px;">
+              `;
+
+              // Listeyi çok uzatmamak için optimizasyon sonucunda sadece ilk 20'yi göster
+              selected.slice(0, 20).forEach(item => {
+                  html += `<li><strong>Talep ${item.talep_no}</strong> (${item.group}) - Maliyet: ${item.maliyet || item.cost} - Skor: ${item.score.toFixed(3)}</li>`;
+              });
+
+              if (selected.length > 20) {
+                  html += `<li>... ve ${selected.length - 20} adet daha.</li>`;
+              }
+
+              if (selected.length === 0) {
+                  html += `<li>Bütçe yetersiz veya uygun aday bulunamadı.</li>`;
+              }
+
+              html += `</ul></div>`;
+              outputDiv.innerHTML = html;
+              outputDiv.style.display = "block";
+
+          } catch (err) {
+              console.error(err);
+              resultSpan.textContent = "Hesaplama Hatası!";
+              resultSpan.style.color = "#ef4444";
+          }
+      }, 500);
+  };
+</script>
+</body>
+</html>
