@@ -88,7 +88,7 @@
     /* MOBILE */
     @media (max-width: 900px) {
       .app { grid-template-columns: 1fr; padding: 0; }
-      .sidebar { display: none; } /* Basitlik için mobilde sidebar gizlendi, toggle eklenebilir */
+      .sidebar { display: none; } 
       .kpi-grid { grid-template-columns: 1fr 1fr; }
     }
   </style>
@@ -109,7 +109,7 @@
     <div class="topbar">
       <div>
         <div style="font-weight:bold; font-size:16px;">Yatırım Karar Destek Sistemi</div>
-        <div style="font-size:12px; color:var(--text-muted);">Sürüm 2.0 - Final Veri Seti</div>
+        <div style="font-size:12px; color:var(--text-muted);">v2.1 - 450 Varlık Tam Veri</div>
       </div>
       <div style="font-size:12px; background:#334155; padding:5px 10px; border-radius:20px;">
         Bütçe: {{ kpi.budget }} Birim
@@ -134,17 +134,9 @@
             <div class="kpi-value">{{ kpi.avg_health }}</div>
           </div>
           <div class="kpi-card">
-            <div style="color:var(--text-muted); font-size:12px;">Aktif Bütçe</div>
+            <div style="color:var(--text-muted); font-size:12px;">Planlanan Bütçe</div>
             <div class="kpi-value" style="color:var(--ener-yellow);">{{ kpi.budget }}</div>
           </div>
-        </div>
-        <div style="background:#1e293b; padding:20px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
-            <h3>Sistem Durumu</h3>
-            <p style="color:var(--text-muted); font-size:14px; margin-top:10px;">
-                Şu anda sistemde <strong>{{ kpi.total_assets }}</strong> adet şebeke unsuru izlenmektedir. 
-                Yapılan analizlere göre varlıkların <strong>{{ kpi.high_risk_count }}</strong> adedi acil müdahale gerektiren yüksek risk grubundadır.
-                Optimizasyon modülü, belirlenen <strong>{{ kpi.budget }}</strong> birimlik bütçe kısıtı altında en kritik varlıkları seçecektir.
-            </p>
         </div>
       </div>
 
@@ -219,15 +211,15 @@
 </div>
 
 <script>
-    // FLASK'TAN GELEN VERİYİ ALIYORUZ
-    // Bu satır Jinja2 template motoru tarafından doldurulur.
+    // KRİTİK NOKTA: Veriyi Flask'tan JSON olarak alıyoruz.
+    // Artık elle yazılmış veri yok!
     const assetsData = {{ assets | tojson }};
 
     // Tabloyu Doldur
     const tbody = document.getElementById("assets-tbody");
     
-    // Performans için ilk 100 satırı gösteriyoruz (gerisi veri içinde var)
-    const displayData = assetsData.slice(0, 450); 
+    // 450 varlığın hepsini göstermek istedin
+    const displayData = assetsData; 
 
     let rowsHtml = "";
     displayData.forEach(item => {
@@ -273,9 +265,7 @@
         document.getElementById('detail-placeholder').style.display = 'none';
         document.getElementById('detail-card').style.display = 'block';
 
-        // Detay sekmesine git
         switchView('detail');
-        // Menü butonunu güncelle
         document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.menu-btn')[2].classList.add('active');
     }
@@ -301,9 +291,13 @@
                 `;
 
                 let listHtml = "";
-                data.selected.forEach(item => {
+                // Listede sadece ilk 50 taneyi gösterelim ki kutu taşmasın
+                data.selected.slice(0,50).forEach(item => {
                     listHtml += `<li><b>${item.talep_no}</b> (${item.grup}) - Maliyet: ${item.maliyet} - Skor: ${item.skor}</li>`;
                 });
+                if(data.selected.length > 50) {
+                    listHtml += `<li>... ve ${data.selected.length - 50} adet daha.</li>`;
+                }
                 list.innerHTML = listHtml;
 
                 btn.innerText = "Tekrar Çalıştır";
