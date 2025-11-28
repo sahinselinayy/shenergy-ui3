@@ -1,51 +1,63 @@
 from flask import Flask, render_template, jsonify
+# Dosya adınız 'model_data (1).py' ise, import ederken sorun çıkabilir.
+# Lütfen dosyanın adını 'model_data.py' olarak değiştirin ve yanına koyun.
 import model_data
 import json
 
 app = Flask(__name__)
 
 # ------------------------------------------------------------------------------
-# VERİ İŞLEME KATMANI
+# AYARLAR VE SABİTLER
+# ------------------------------------------------------------------------------
+# NOT: model_data.B = 60 gelmiş. Bu bütçe ile sadece 1 varlık seçilir.
+# 20 tane seçilmesi için bütçeyi burada override ediyoruz (Tahmini: 20 * ~75 maliyet = 1500)
+TARGET_BUDGET = 1500 
+
+# Ağırlıklar (Değiştirebilirsiniz)
+W = {'w1': 0.3, 'w2': 0.2, 'w3': 0.1, 'w4': 0.4}
+
+# ------------------------------------------------------------------------------
+# VERİ İŞLEME
 # ------------------------------------------------------------------------------
 def get_all_assets():
-    """
-    model_data.py içindeki ayrık sözlük yapılarını (I, SAIDI, C, A vb.)
-    tek bir liste haline getirir.
-    """
     assets = []
     
-    # model_data.py'daki 'A' değerlerinin maksimumunu bulalım (Normalizasyon için)
-    # Varsayım: A değeri 'Sağlık Puanı'dır ve yüksek olması iyidir.
-    max_health_raw = max(model_data.A.values()) if model_data.A else 1
+    # Sağlık İndeksi (HI) normalizasyonu için maksimum değeri bul
+    # Veri setinde değerler 0-10000 arasında görünüyor.
+    max_hi = 10000 
 
     for i in model_data.I:
-        # Veri güvenliği: Sözlükte anahtar yoksa varsayılan değer ata
-        raw_health = model_data.A.get(i, 0)
+        # Yeni veri setinde 'HI' (Health Index) kullanılmış
+        raw_health = model_data.HI.get(i, 0)
         
-        # UI için 0-100 arasına normalize edilmiş sağlık skoru
-        health_ui = round((raw_health / max_health_raw) * 100, 1)
+        # 0-100 Skalasına çekelim
+        health_ui = round((raw_health / max_hi) * 100, 1)
         
-        # Risk Durumu: Sağlık skoru düşükse risk yüksektir.
-        # Basit bir kural seti: <50 Yüksek, 50-75 Orta, >75 Düşük
-        if health_ui < 50:
+        # Risk Etiketi Belirleme
+        if health_ui < 40:
             risk_label = "Yüksek"
-        elif health_ui < 75:
+        elif health_ui < 70:
             risk_label = "Orta"
         else:
             risk_label = "Düşük"
 
-        # Varlık Tipi (Yatırım/Bakım)
-        is_investment = model_data.Y_B.get(i, 0) == 1
-        operation_type = "Yatırım" if is_investment else "Bakım"
+        # Yeni veri setinde Grup ismi 'TYPE' değişkeninde
+        group_name = model_data.TYPE.get(i, "Genel")
+
+        # Talep No ve İşlem Tipi veride yok, ID'den türetiyoruz
+        talep_no = f"T-{1000+i}" 
+        
+        # Varsayılan olarak hepsini 'Yatırım Adayı' kabul ediyoruz
+        operation_type = "Yatırım"
 
         asset = {
             "id": i,
-            "talep_no": str(model_data.TALEP_NO.get(i, "N/A")),
+            "talep_no": talep_no,
             "saidi": model_data.SAIDI.get(i, 0.0),
             "saifi": model_data.SAIFI.get(i, 0.0),
-            "cost": model_data.C.get(i, 0),       # Maliyet
-            "group": model_data.G.get(i, "Genel"), # Trafo, Kesici vb.
-            "category_public": model_data.K.get(i, 0) == 1, # Kamu/Özel
+            "cost": model_data.C.get(i, 0),
+            "group": group_name,
+            "category_public": model_data.K.get(i, 0) == 1,
             "raw_health": raw_health,
             "health_ui": health_ui,
             "risk_label": risk_label,
@@ -56,96 +68,75 @@ def get_all_assets():
     return assets
 
 # ------------------------------------------------------------------------------
-# ROTALAR (ROUTES)
+# ENDPOINTLER
 # ------------------------------------------------------------------------------
 
 @app.route("/")
 def index():
-    # Tüm varlıkları çek
     assets = get_all_assets()
     
-    # Dashboard KPI Hesaplamaları
+    # KPI Hesaplamaları
     total_assets = len(assets)
     high_risk_count = sum(1 for a in assets if a["risk_label"] == "Yüksek")
     avg_health = sum(a["health_ui"] for a in assets) / total_assets if total_assets > 0 else 0
-    budget_allocated = model_data.B
 
     kpi = {
         "total_assets": total_assets,
         "high_risk_count": high_risk_count,
         "avg_health": round(avg_health, 1),
-        "budget": budget_allocated
+        "budget": TARGET_BUDGET
     }
 
-    # Frontend'e veriyi JSON string olarak da gömelim (hızlı rendering için)
+    # index.html'e veriyi gönder
     return render_template("index.html", assets=assets, kpi=kpi)
 
 @app.route("/api/optimize", methods=["GET", "POST"])
 def run_optimization():
-    """
-    MCDA (Çok Kriterli Karar Verme) tabanlı basit bir optimizasyon.
-    Amaç: Bütçe kısıtı altında 'Fayda/Risk İyileştirme' skorunu maksimize etmek.
-    """
     try:
         assets = get_all_assets()
-        budget = model_data.B
+        budget = TARGET_BUDGET  # Yükseltilmiş bütçeyi kullan
         
-        # Ağırlıklar
-        w1 = model_data.w1  # SAIDI etkisi
-        w2 = model_data.w2  # SAIFI etkisi
-        w3 = model_data.w3  # Maliyet (veya diğer faktör)
-        w4 = model_data.w4  # Sağlık/Risk etkisi
-
-        # Normalizasyon için maksimum değerleri bul (Sıfıra bölme hatasından kaçın)
+        # Normalizasyon için max değerler
         max_saidi = max((a["saidi"] for a in assets), default=1)
         max_saifi = max((a["saifi"] for a in assets), default=1)
-        # Sağlıkta 'iyileştirme potansiyeli'ne bakıyoruz. Düşük sağlık = Yüksek puan.
-        # raw_health max değeri zaten get_all_assets içinde kullanıldı ama burada gerekirse tekrar bakılabilir.
 
         scored_assets = []
         for a in assets:
-            # SKORLAMA MANTIĞI:
-            # SAIDI ve SAIFI yüksekse -> Müdahale önceliği yüksek
-            # Sağlık düşükse -> Müdahale önceliği yüksek
-            
+            # 1. Kriter: SAIDI (Ne kadar yüksekse o kadar öncelikli)
             norm_saidi = a["saidi"] / max_saidi if max_saidi > 0 else 0
+            
+            # 2. Kriter: SAIFI (Ne kadar yüksekse o kadar öncelikli)
             norm_saifi = a["saifi"] / max_saifi if max_saifi > 0 else 0
             
-            # Sağlık ne kadar kötüyse (100 - health_ui), skor o kadar artmalı
+            # 3. Kriter: Sağlık Riski (Sağlık ne kadar kötüyse (düşükse), puan o kadar artmalı)
+            # health_ui 0-100 arası (100 iyi). Yani (100 - health) bize risk puanını verir.
             norm_health_risk = (100 - a["health_ui"]) / 100.0
 
-            # Bileşik Skor (Weighted Score)
-            # Not: Maliyet genellikle "Fayda/Maliyet" oranında paydada kullanılır, 
-            # ancak burada model_data'daki w3 ağırlığına sadık kalmak için skora ekliyorum.
-            # w3'ün negatif veya pozitif etkisi model tasarımına bağlıdır. 
-            # Burada 'Yatırım Önceliği' puanı hesaplıyoruz.
+            # Toplam Skor
+            priority_score = (W['w1'] * norm_saidi) + (W['w2'] * norm_saifi) + (W['w4'] * norm_health_risk)
             
-            priority_score = (w1 * norm_saidi) + (w2 * norm_saifi) + (w4 * norm_health_risk)
-            
-            # Veriye ekle
             a["priority_score"] = priority_score
             scored_assets.append(a)
 
-        # Greedy Yaklaşım: (Skor / Maliyet) oranına göre sırala (Bang for buck)
-        # Maliyeti 0 olanlar için sonsuz öncelik vermemek adına maliyete küçük epsilon eklenir veya min 1 alınır.
-        scored_assets.sort(key=lambda x: x["priority_score"] / max(x["cost"], 0.001), reverse=True)
+        # Sıralama: (Skor / Maliyet) oranına göre "Bang for Buck" yaklaşımı
+        # Yani birim maliyet başına en yüksek faydayı sağlayanları en başa alıyoruz.
+        scored_assets.sort(key=lambda x: x["priority_score"] / max(x["cost"], 1), reverse=True)
 
         selected = []
         used_budget = 0.0
         total_objective_val = 0.0
 
+        # Greedy Seçim
         for item in scored_assets:
-            cost = item["cost"]
-            if used_budget + cost <= budget:
+            if used_budget + item["cost"] <= budget:
                 selected.append({
                     "talep_no": item["talep_no"],
                     "tur": item["operation_type"],
                     "grup": item["group"],
-                    "kurum": "Kamu" if item["category_public"] else "Özel",
-                    "maliyet": cost,
+                    "maliyet": item["cost"],
                     "skor": round(item["priority_score"], 4)
                 })
-                used_budget += cost
+                used_budget += item["cost"]
                 total_objective_val += item["priority_score"]
 
         return jsonify({
@@ -158,7 +149,7 @@ def run_optimization():
         })
 
     except Exception as e:
-        print(f"Optimizasyon Hatası: {e}")
+        print(f"Hata: {e}")
         return jsonify({"status": "Error", "error": str(e)}), 500
 
 if __name__ == "__main__":
